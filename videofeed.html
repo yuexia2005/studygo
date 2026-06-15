@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>视频Feed流 - 演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #0b1120 0%, #19233c 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        /* 卡片通用样式 */
+        .card {
+            background: rgba(18, 25, 45, 0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.4);
+            transition: all 0.2s ease;
+        }
+        .card-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #eef2ff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .card-header i {
+            font-size: 1.8rem;
+        }
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            color: #a5b4fc;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.3rem;
+        }
+        input, textarea, .file-label {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #2d3a5e;
+            border-radius: 1.2rem;
+            color: white;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            outline: none;
+        }
+        input:focus, textarea:focus {
+            border-color: #818cf8;
+            box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.3);
+        }
+        .file-label {
+            display: inline-block;
+            background: #1e293b;
+            text-align: center;
+            cursor: pointer;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        button {
+            background: linear-gradient(95deg, #4f46e5, #7c3aed);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        button:hover {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+        .secondary-btn {
+            background: #2d3a5e;
+            margin-top: 0;
+        }
+        .video-card {
+            background: #0f172ad9;
+            border-radius: 1.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #4f46e5;
+        }
+        .video-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            color: #f1f5f9;
+        }
+        .video-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+            color: #94a3b8;
+            font-size: 0.8rem;
+        }
+        .video-desc {
+        color: #e2e8f0;      /* 浅灰色，亮眼 */
+        margin: 8px 0;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        background: rgba(0,0,0,0.3); /* 可选半透明底，增加对比 */
+        padding: 4px 8px;
+        border-radius: 8px;
+        }
+        .like-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            color: #f472b6;
+            width: auto;
+            padding: 0.2rem 0.8rem;
+            margin: 0;
+        }
+        .like-btn.liked {
+            color: #ec4899;
+            font-weight: bold;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .hidden {
+            display: none;
+        }
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 2rem;
+            font-size: 0.85rem;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            border: 1px solid #475569;
+        }
+        .loading {
+            text-align: center;
+            color: #94a3b8;
+            padding: 2rem;
+        }
+        hr {
+            border-color: #2d3a5e;
+            margin: 1rem 0;
+        }
+        .switch-link {
+            text-align: center;
+            margin-top: 1rem;
+            color: #a5b4fc;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .tab-btn {
+            background: #4b5563;
+            margin-right: 0.5rem;
+            width: auto;
+        }
+        .tab-btn.active {
+            background: #7c3aed;
+            box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+        }
+        .comment-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 8px;
+        }
+        .comment-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #2d3a5e;
+        }
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .comment-author {
+            font-weight: bold;
+            color: #a5b4fc;
+        }
+        .comment-time {
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+        .comment-content {
+            color: #e2e8f0;
+            word-break: break-word;
+        }
+        .delete-comment-btn {
+            background: #dc2626;
+            border: none;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            margin-top: 4px;
+        }
+        .comment-input-area {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .comment-input {
+            flex: 1;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #2d3a5e;
+            border-radius: 12px;
+            padding: 6px 10px;
+            color: white;
+            resize: vertical;
+        }
+        .submit-comment-btn {
+            background: #4f46e5;
+            padding: 6px 12px;
+            width: auto;
+            margin-top: 0;
+        }
+        .comment-toggle-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            width: auto;
+            padding: 0;
+            margin-top: 8px;
+            font-size: 0.9rem;
+        }
+        .comment-toggle-btn:hover {
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 认证卡片 -->
+    <div class="card" id="authCard">
+        <div class="card-header">
+            <span>🎬</span> 闫炜鹏的视频社区 · 登录/注册
+        </div>
+        <div id="loginForm">
+            <div class="input-group">
+                <label>用户名</label>
+                <input type="text" id="loginUsername" placeholder="用户名">
+            </div>
+            <div class="input-group">
+                <label>密码</label>
+                <input type="password" id="loginPassword" placeholder="密码">
+            </div>
+            <button id="loginBtn">登录</button>
+            <div class="switch-link" id="toRegisterBtn">还没有账号？去注册Ciallo～(∠・ω )⌒☆ →</div>
+        </div>
+        <div id="registerForm" class="hidden">
+            <div class="input-group">
+                <label>用户名</label>
+                <input type="text" id="regUsername" placeholder="用户名">
+            </div>
+            <div class="input-group">
+                <label>密码</label>
+                <input type="password" id="regPassword" placeholder="密码 (≥6位)">
+            </div>
+            <button id="registerBtn">注册</button>
+            <div class="switch-link" id="toLoginBtn">← 返回登录</div>
+        </div>
+    </div>
+
+    <!-- 主内容 (登录后显示) -->
+    <div id="mainContent" class="hidden">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+            <div>
+                <button id="showFeedBtn" class="tab-btn active" style="width: auto; margin-right: 0.5rem;">最新视频</button>
+                <button id="showHotBtn" class="tab-btn" style="width: auto;">热榜</button>
+            </div>
+            <button id="logoutBtn" style="width: auto; padding: 0.5rem 1rem; background: #4b5563;">退出登录</button>
+        </div>
+        <!-- 上传视频卡片 -->
+        <div class="card">
+            <div class="card-header">📤 发布视频</div>
+            <div class="input-group">
+                <label>标题</label>
+                <input type="text" id="videoTitle" placeholder="视频标题">
+            </div>
+            <div class="input-group">
+                <label>描述</label>
+                <textarea id="videoDesc" rows="2" placeholder="视频描述"></textarea>
+            </div>
+            <div class="input-group">
+                <label>选择视频文件 (MP4)</label>
+                <label class="file-label" id="fileLabel" for="videoFile">📁 点击选择文件</label>
+                <input type="file" id="videoFile" accept="video/mp4">
+            </div>
+            <button id="uploadBtn">上传视频</button>
+        </div>
+
+        <!-- Feed 流 -->
+        <div class="card">
+            <div class="card-header">🔥 最新视频</div>
+            <div id="feedList"></div>
+            <div id="feedLoading" class="loading hidden">加载中...</div>
+            <button id="loadMoreBtn" class="secondary-btn hidden">加载更多</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 配置
+    const API_BASE = 'http://localhost:8085';
+    const commentState = {};
+    let token = localStorage.getItem('token') || '';
+    let lastId = 0;           // 游标分页的 last_id
+    let hasMore = true;
+    let currentUserId = localStorage.getItem('user_id') || null;
+    let currentMode = 'feed';   // 'feed' 或 'hot'
+    const showFeedBtn = document.getElementById('showFeedBtn');
+    const showHotBtn = document.getElementById('showHotBtn');
+
+    // DOM 元素
+    const authCard = document.getElementById('authCard');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const mainContent = document.getElementById('mainContent');
+    const feedList = document.getElementById('feedList');
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+
+    // 切换登录/注册界面
+    document.getElementById('toRegisterBtn').onclick = () => {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+    };
+    document.getElementById('toLoginBtn').onclick = () => {
+        registerForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+    };
+
+    // 通用请求封装 (带 token)
+    async function apiRequest(endpoint, method, body = null, isFormData = false) {
+        const headers = {};
+        if (token && !endpoint.includes('/login') && !endpoint.includes('/register')) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        let options = {
+            method,
+            headers,
+        };
+        if (body) {
+            if (isFormData) {
+                options.body = body;
+            } else {
+                headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(body);
+            }
+        }
+        const res = await fetch(API_BASE + endpoint, options);
+        let data;
+        try {
+            data = await res.json();
+        }catch (e){
+            data = { error : await res.text() }
+        }
+        if (!res.ok) {
+            if (res.status === 429) {
+                throw new Error('请求过于频繁，请稍后再试');
+            }
+            throw new Error(data.error || '请求失败');
+        }
+        return data;
+    }
+
+    // 显示提示
+    function showToast(msg, isError = false) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerText = msg;
+        toast.style.background = isError ? '#b91c1c' : '#0f172a';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+    }
+
+    // 登录
+    document.getElementById('loginBtn').onclick = async () => {
+        const username = document.getElementById('loginUsername').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        if (!username || !password) return showToast('请填写完整', true);
+        try {
+            const data = await apiRequest('/login', 'POST', { username, password });
+            token = data.token;
+            localStorage.setItem('token', token);
+            localStorage.setItem('user_id', data.user_id);  // 保存当前用户ID
+            currentUserId = data.user_id;
+            showToast('登录成功');
+            // 切换到主界面
+            authCard.classList.add('hidden');
+            mainContent.classList.remove('hidden');
+            // 重置 feed 并加载第一页
+            resetFeed();
+            loadFeed();
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    };
+
+    // 注册
+    document.getElementById('registerBtn').onclick = async () => {
+        const username = document.getElementById('regUsername').value.trim();
+        const password = document.getElementById('regPassword').value;
+        if (!username || !password || password.length < 6) return showToast('密码至少6位', true);
+        try {
+            await apiRequest('/register', 'POST', { username, password });
+            showToast('注册成功，请登录');
+            document.getElementById('toLoginBtn').click();
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    };
+
+    // 上传视频
+    document.getElementById('videoFile').onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) document.getElementById('fileLabel').innerText = file.name;
+        else document.getElementById('fileLabel').innerText = '📁 点击选择文件';
+    };
+    document.getElementById('uploadBtn').onclick = async () => {
+        const title = document.getElementById('videoTitle').value.trim();
+        const desc = document.getElementById('videoDesc').value.trim();
+        const file = document.getElementById('videoFile').files[0];
+        if (!title || !file) return showToast('标题和视频文件不能为空', true);
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('description', desc);
+        formData.append('video', file);
+        try {
+            await apiRequest('/api/video/upload', 'POST', formData, true);
+            showToast('上传成功！');
+            document.getElementById('videoTitle').value = '';
+            document.getElementById('videoDesc').value = '';
+            document.getElementById('videoFile').value = '';
+            document.getElementById('fileLabel').innerText = '📁 点击选择文件';
+            // 上传后重置 feed 重新加载第一页
+            if (currentMode === 'feed') {
+                resetFeed();
+                loadFeed();
+            } else {
+                feedList.innerHTML = '';
+                loadHot();
+            }
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    };
+    document.getElementById('logoutBtn').onclick = () => {
+        localStorage.removeItem('token');
+        currentUserId = null;
+        token = '';
+        mainContent.classList.add('hidden');
+        authCard.classList.remove('hidden');
+        feedList.innerHTML = '';
+        resetFeed();
+        document.getElementById('videoTitle').value = '';
+        document.getElementById('videoDesc').value = '';
+        document.getElementById('videoFile').value = '';
+        document.getElementById('fileLabel').innerText = '📁 点击选择文件';
+        showToast('已退出登录');
+    };
+    // 点赞/取消点赞
+    async function toggleLike(videoId, btnElement, countSpan) {
+        try {
+            const data = await apiRequest(`/api/video/${videoId}/like`, 'POST');
+            const liked = data.liked;   // 后端返回当前点赞状态
+            const newCount = data.like_count;
+            if (liked) {
+                btnElement.classList.add('liked');
+                btnElement.innerHTML = `❤️ ${newCount}`;
+            } else {
+                btnElement.classList.remove('liked');
+                btnElement.innerHTML = `🤍 ${newCount}`;
+            }
+            if (countSpan) countSpan.innerText = newCount;
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    }
+    async function loadComments(videoId, container, isLoadMore = false) {
+        if (!commentState[videoId]) {
+            commentState[videoId] = { lastId: 0, hasMore: true, loading: false };
+        }
+        const state = commentState[videoId];
+        if (state.loading) return;
+        if (!isLoadMore && !state.hasMore) return;
+
+        state.loading = true;
+        try {
+            let url = `/api/video/${videoId}/comments?limit=5`;
+            if (isLoadMore && state.lastId > 0) url += `&last_id=${state.lastId}`;
+            const data = await apiRequest(url, 'GET');
+            const comments = data.comments || [];
+            const hasMore = data.has_more;
+
+            if (!isLoadMore) {
+                container.innerHTML = '';
+                state.lastId = 0;
+                state.hasMore = true;
+            }
+
+            if (comments.length === 0 && !isLoadMore) {
+                container.innerHTML = '<div style="padding:8px;color:#94a3b8;">暂无评论，快来抢沙发~</div>';
+                state.hasMore = false;
+                return;
+            }
+
+            for (const c of comments) {
+                const div = document.createElement('div');
+                div.className = 'comment-item';
+                div.innerHTML = `
+                    <div class="comment-header">
+                        <span class="comment-author">${escapeHtml(c.username)}</span>
+                        <span class="comment-time">${new Date(c.CreatedAt).toLocaleString()}</span>
+                    </div>
+                    <div class="comment-content">${escapeHtml(c.Content)}</div>
+                `;
+                // 删除按钮（仅作者或视频作者可见）
+                const videoCard = container.closest('.video-card');
+                const videoAuthorId = videoCard ? videoCard.getAttribute('data-author-id') : null;
+                if (currentUserId && (c.UserID == currentUserId || videoAuthorId == currentUserId)) {
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-comment-btn';
+                    delBtn.innerText = '删除';
+                    delBtn.onclick = async () => {
+                        if (confirm('确定删除这条评论吗？')) {
+                            await apiRequest(`/api/comment/${c.ID}`, 'DELETE');
+                            // 重新加载第一页评论
+                            delete commentState[videoId];
+                            loadComments(videoId, container, false);
+                        }
+                    };
+                    div.appendChild(delBtn);
+                }
+                container.appendChild(div);
+            }
+
+            state.lastId = data.last_id;
+            state.hasMore = hasMore;
+
+            // 绑定滚动加载
+            if (hasMore && !container.scrollHandler) {
+                container.addEventListener('scroll', () => {
+                    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50 && state.hasMore && !state.loading) {
+                        loadComments(videoId, container, true);
+                    }
+                });
+                container.scrollHandler = true;
+            }
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = '<div style="color:#f87171;">加载评论失败</div>';
+        } finally {
+            state.loading = false;
+        }
+    }
+    //发表评论函数
+    async function postComment(videoId, content, container) {
+        try {
+            await apiRequest(`/api/video/${videoId}/comment`, 'POST', { content });
+            // 重置状态，重新加载评论
+            delete commentState[videoId];
+            loadComments(videoId, container, false);
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    }
+    function toggleComments(videoId, btn, container) {
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+            // 加载评论（首次）
+            loadComments(videoId, container, false);
+            // 如果容器内还没有输入框，添加输入框（首次加载时添加）
+            if (!container.querySelector('.comment-input-area')) {
+                const inputDiv = document.createElement('div');
+                inputDiv.className = 'comment-input-area';
+                inputDiv.innerHTML = `
+                    <textarea class="comment-input" rows="2" placeholder="写评论..."></textarea>
+                    <button class="submit-comment-btn">发布</button>
+                `;
+                container.appendChild(inputDiv);
+                const textarea = inputDiv.querySelector('.comment-input');
+                const submitBtn = inputDiv.querySelector('.submit-comment-btn');
+                submitBtn.onclick = async () => {
+                    const content = textarea.value.trim();
+                    if (!content) return;
+                    await postComment(videoId, content, container);
+                    textarea.value = '';
+                };
+            }
+        } else {
+            container.style.display = 'none';
+        }
+    }
+    //删除视频
+    async function deleteHandler(e) {
+        const videoId = e.currentTarget.dataset.id;
+        if (!confirm('确定删除该视频吗？')) return;
+        try {
+            await apiRequest(`/api/video/${videoId}`, 'DELETE');
+            const card = e.currentTarget.closest('.video-card');
+            if (card) card.remove();
+            showToast('删除成功');
+            if (currentMode === 'feed') {
+                resetFeed();
+                loadFeed();
+            } else {
+                feedList.innerHTML = '';
+                loadHot();
+            }
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    }
+    // 加载 feed (游标分页)
+    async function loadFeed() {
+        if (!hasMore) return;
+        const loadingDiv = document.getElementById('feedLoading');
+        loadingDiv.classList.remove('hidden');
+        try {
+            let url = `/api/feed?limit=5`;
+            if (lastId > 0) url += `&last_id=${lastId}`;
+            const data = await apiRequest(url, 'GET');
+            const videos = data.list || data;  // 兼容返回格式
+            if (!videos || videos.length === 0) {
+                hasMore = false;
+                loadMoreBtn.classList.add('hidden');
+                if (feedList.children.length === 0) feedList.innerHTML = '<div class="loading">暂无视频，快去上传第一个吧~</div>';
+                return;
+            }
+            // 渲染
+            for (const v of videos) {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.dataset.id = v.ID;
+                card.setAttribute('data-author-id', v.UserID);
+                // 判断用户是否已经点赞（后端返回 is_liked 字段）
+                const likedClass = v.is_liked ? 'liked' : '';
+                const likeIcon = v.is_liked ? '❤️' : '🤍';
+                const isAuthor = currentUserId && v.UserID == currentUserId;
+                card.innerHTML = `
+                    <div class="video-title">${escapeHtml(v.Title)}</div>
+                    ${v.Description ? `<div class="video-desc">${escapeHtml(v.Description)}</div>` : ''}
+                    <video controls width="100%" src="${API_BASE}/uploads/${v.FilePath.split('/').pop()}" style="border-radius: 12px; margin: 8px 0;"></video>
+                    <div class="video-meta">
+                <span>👤 ${v.username ? escapeHtml(v.username) : '用户' + v.UserID}</span>
+                <span>📅 ${new Date(v.CreatedAt).toLocaleString()}</span>
+                ${isAuthor ? `<button class="delete-btn" data-id="${v.ID}" style="background: #dc2626; border: none; color: white; padding: 2px 8px; border-radius: 12px; cursor: pointer; margin-left: auto;">删除</button>` : ''}
+        </div>
+        <button class="comment-toggle-btn" data-id="${v.ID}" style="background: none; border: none; color: #94a3b8; cursor: pointer; width: auto; padding: 0; margin: 8px 0 0 0;">💬 评论</button>
+        <div class="comment-list" data-id="${v.ID}" style="display: none; margin-top: 8px; max-height: 300px; overflow-y: auto;"></div>
+        <div style="margin-top: 10px;">
+            <button class="like-btn ${likedClass}" data-id="${v.ID}">${likeIcon} ${v.LikeCount || 0}</button>
+        </div>
+    `;
+                feedList.appendChild(card);
+            }
+            // 更新游标 (最后一个视频的ID)
+            if (videos.length > 0) {
+                lastId = videos[videos.length - 1].ID;
+                hasMore = videos.length === 5; // 如果返回数量等于limit，认为可能还有更多
+                if (hasMore) loadMoreBtn.classList.remove('hidden');
+                else loadMoreBtn.classList.add('hidden');
+            } else {
+                hasMore = false;
+                loadMoreBtn.classList.add('hidden');
+            }
+            bindEvents();
+        } catch (err) {
+            let msg = err.message;
+            if (msg.includes('请求过于频繁')){
+                msg = '请求过于频繁,请稍后再试';
+            }
+            showToast('加载feed失败: ' + err.message, true);
+        } finally {
+            loadingDiv.classList.add('hidden');
+        }
+    }
+    async function loadHot() {
+        const loadingDiv = document.getElementById('feedLoading');
+        loadingDiv.classList.remove('hidden');
+        try {
+            const data = await apiRequest('/api/hot?limit=10', 'GET');
+            const videos = data.list || [];
+            // 清空列表
+            feedList.innerHTML = '';
+            if (!videos || videos.length === 0) {
+                feedList.innerHTML = '<div class="loading">暂无热榜视频</div>';
+                loadMoreBtn.classList.add('hidden');
+                return;
+            }
+            // 复用渲染函数（与 feed 相同）
+            renderVideos(videos);
+            loadMoreBtn.classList.add('hidden'); // 热榜暂不分页，隐藏加载更多
+        } catch (err) {
+            showToast('加载热榜失败: ' + err.message, true);
+        } finally {
+            loadingDiv.classList.add('hidden');
+        }
+    }
+
+    function likeHandler(e) {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const videoId = btn.dataset.id;
+        const countSpan = btn.querySelector('span') || btn; // 简化
+        toggleLike(videoId, btn, null);
+    }
+
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // 绑定点赞和删除事件（复用）
+    function bindEvents() {
+        document.querySelectorAll('.like-btn').forEach(btn => {
+            btn.removeEventListener('click', likeHandler);
+            btn.addEventListener('click', likeHandler);
+        });
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.removeEventListener('click', deleteHandler);
+            btn.addEventListener('click', deleteHandler);
+        });
+        document.querySelectorAll('.comment-toggle-btn').forEach(btn => {
+        btn.removeEventListener('click', commentToggleHandler);
+        btn.addEventListener('click', commentToggleHandler);
+        });
+    }
+    
+    function commentToggleHandler(e) {
+        const btn = e.currentTarget;
+        const videoId = btn.getAttribute('data-id');
+        const container = document.querySelector(`.comment-list[data-id="${videoId}"]`);
+        toggleComments(videoId, btn, container);
+    }
+
+    function resetFeed() {
+        feedList.innerHTML = '';
+        lastId = 0;
+        hasMore = true;
+        loadMoreBtn.classList.add('hidden');
+        // 清空评论状态，避免内存泄漏（可选）
+        for (let key in commentState) delete commentState[key];
+    }
+
+    // 渲染视频卡片（供 feed 和 hot 共用）
+    function renderVideos(videos) {
+        for (const v of videos) {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.dataset.id = v.ID;
+            card.setAttribute('data-author-id', v.UserID);
+            const likedClass = v.is_liked ? 'liked' : '';
+            const likeIcon = v.is_liked ? '❤️' : '🤍';
+            const isAuthor = currentUserId && v.UserID == currentUserId;
+            card.innerHTML = `
+                <div class="video-title">${escapeHtml(v.Title)}</div>
+                ${v.Description ? `<div class="video-desc">${escapeHtml(v.Description)}</div>` : ''}
+                <video controls width="100%" src="${API_BASE}/uploads/${v.FilePath.split('/').pop()}" style="border-radius: 12px; margin: 8px 0;"></video>
+                <div class="video-meta">
+                    <span>👤 ${v.username ? escapeHtml(v.username) : '用户' + v.UserID}</span>
+                    <span>📅 ${new Date(v.CreatedAt).toLocaleString()}</span>
+                    ${isAuthor ? `<button class="delete-btn" data-id="${v.ID}" style="background: #dc2626; border: none; color: white; padding: 2px 8px; border-radius: 12px; cursor: pointer; margin-left: auto;">删除</button>` : ''}
+                </div>
+                <button class="comment-toggle-btn" data-id="${v.ID}" style="background: none; border: none; color: #94a3b8; cursor: pointer; width: auto; padding: 0; margin: 8px 0 0 0;">💬 评论</button>
+                <div class="comment-list" data-id="${v.ID}" style="display: none; margin-top: 8px; max-height: 300px; overflow-y: auto;"></div>
+                <div style="margin-top: 10px;">
+                    <button class="like-btn ${likedClass}" data-id="${v.ID}">${likeIcon} ${v.LikeCount || 0}</button>
+                </div>
+            `;
+            feedList.appendChild(card);
+        }
+        bindEvents();
+    }
+    loadMoreBtn.onclick = () => loadFeed();
+
+        // 切换 Feed 流（最新视频）
+    showFeedBtn.onclick = () => {
+        if (currentMode === 'feed') return;
+        currentMode = 'feed';
+        showFeedBtn.classList.add('active');
+        showHotBtn.classList.remove('active');
+        // 修改卡片标题
+        const feedCardHeader = document.querySelector('#mainContent .card:last-child .card-header');
+        if (feedCardHeader) feedCardHeader.innerHTML = '🔥 最新视频';
+        resetFeed();
+        loadFeed();
+    };
+
+    // 切换热榜
+    showHotBtn.onclick = () => {
+        if (currentMode === 'hot') return;
+        currentMode = 'hot';
+        showHotBtn.classList.add('active');
+        showFeedBtn.classList.remove('active');
+        // 修改卡片标题
+        const feedCardHeader = document.querySelector('#mainContent .card:last-child .card-header');
+        if (feedCardHeader) feedCardHeader.innerHTML = '🔥 热榜';
+        feedList.innerHTML = '';
+        loadHot();
+    };
+
+    // 自动登录检查
+    if (token) {
+        (async () => {
+            try {
+                // 简单验证 token 是否有效，调用任意需要认证的接口，比如获取feed第一页
+                await apiRequest('/api/feed?limit=1', 'GET');
+                authCard.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                resetFeed();
+                loadFeed();
+                showFeedBtn.classList.add('active');
+                showHotBtn.classList.remove('active');
+                currentMode = 'feed';
+            } catch (err) {
+                localStorage.removeItem('token');
+                token = '';
+            }
+        })();
+    }
+</script>
+</body>
+</html>

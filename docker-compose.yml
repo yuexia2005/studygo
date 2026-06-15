@@ -1,0 +1,82 @@
+version: '3.8'
+services:
+  rabbitmq:
+    image: rabbitmq:3.9-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+    networks:
+      - video_net
+
+  mysql:
+    image: mysql:8.0
+    container_name: video_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: video_feed
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - video_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    
+  redis:
+    image: redis:7-alpine
+    container_name: video_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - video_net
+  
+  app:
+    build: .
+    container_name: video_app
+    restart: always
+    stop_grace_period: 30s
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./uploads:/root/uploads
+      - ./videofeed.html:/root/videofeed.html
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    
+    environment:
+       DB_HOST: mysql
+       DB_PORT: 3306
+       DB_USER: root
+       DB_PASSWORD: 123456
+       DB_NAME: video_feed
+       REDIS_ADDR: redis:6379
+       JWT_SECRET: your_secret_key
+    networks:
+      - video_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  video_net:
+
+volumes:
+  mysql_data:
+    
