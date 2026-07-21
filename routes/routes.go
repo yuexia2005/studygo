@@ -29,9 +29,11 @@ func SetupRouter() *gin.Engine {
 
 	//配置静态服务
 	r.Static("/uploads", "./uploads")
-	//公开路由
+	// Vue3 前端编译产物的静态资源 (JS/CSS/图片等)
+	r.Static("/assets", "./dist/assets")
+	// 公开路由 - 首页用 Vue3 前端
 	r.GET("/", func(c *gin.Context) {
-		c.File("./videofeed.html")
+		c.File("./dist/index.html")
 	})
 	r.POST("/register", controllers.Register)
 	r.POST("/login", controllers.Login)

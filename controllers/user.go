@@ -64,7 +64,8 @@ func Login(c *gin.Context) {
 	}
 	token, _ := utils.GenerateToken(user.ID)
 	c.JSON(200, gin.H{
-		"token":   token,
-		"user_id": user.ID,
+		"token":    token,
+		"user_id":  user.ID,
+		"username": user.Username,
 	})
 }

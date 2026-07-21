@@ -11,7 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/sony/gobreaker"
+	"golang.org/x/sync/singleflight"
 )
+
+// 防击穿
+var hotGroup singleflight.Group
 
 type HotVideo struct {
 	models.Video
@@ -46,7 +50,7 @@ func AsyncRebuildHotRank() {
 
 		// 重建,从数据库查找存入redis
 		var topVideos []models.Video
-		models.DB.WithContext(ctx).Order("like_count DESC").Limit(1000).Find(&topVideos)
+		models.DB.WithContext(ctx).Order("like_count DESC").Limit(200).Find(&topVideos)
 		if len(topVideos) > 0 {
 			pipe := models.RDB.Pipeline()
 			// 先删除旧的热榜 Key，防止旧数据干扰
@@ -113,15 +117,22 @@ func GetHot(c *gin.Context) {
 		// 触发异步重建
 		AsyncRebuildHotRank()
 		// 热榜为空时，从数据库按点赞数降序查询
-		var videos []HotVideo
-		models.DB.WithContext(ctx).Table("videos").
-			Select("videos.*,users.username").
-			Joins("LEFT JOIN users ON users.id = videos.user_id").
-			Order("videos.like_count DESC").
-			Limit(limit).
-			Find(&videos)
-
+		result, err, _ := hotGroup.Do("hot_fallback", func() (interface{}, error) {
+			var videos []HotVideo
+			models.DB.WithContext(ctx).Table("videos").
+				Select("videos.*,users.username").
+				Joins("LEFT JOIN users ON users.id = videos.user_id").
+				Order("videos.like_count DESC").
+				Limit(limit).
+				Find(&videos)
+			return videos, nil
+		})
+		if err != nil { // ← 加错误处理
+			c.JSON(500, gin.H{"error": "查询失败"})
+			return
+		}
 		//判断一下是否点过赞
+		videos := result.([]HotVideo)
 		fillLikedForHot(videos, userID)
 		c.JSON(200, gin.H{"list": videos})
 		return
@@ -131,15 +142,22 @@ func GetHot(c *gin.Context) {
 	ids = result.([]string)
 	if len(ids) == 0 {
 		AsyncRebuildHotRank()
-		var videos []HotVideo
-		models.DB.WithContext(ctx).Table("videos").
-			Select("videos.*,users.username").
-			Joins("LEFT JOIN users ON users.id = videos.user_id").
-			Order("videos.like_count DESC").
-			Limit(limit).
-			Find(&videos)
-
+		result, err, _ := hotGroup.Do("hot_fallback", func() (interface{}, error) {
+			var videos []HotVideo
+			models.DB.WithContext(ctx).Table("videos").
+				Select("videos.*,users.username").
+				Joins("LEFT JOIN users ON users.id = videos.user_id").
+				Order("videos.like_count DESC").
+				Limit(limit).
+				Find(&videos)
+			return videos, nil
+		})
+		if err != nil {
+			c.JSON(500, gin.H{"error": "查询失败"})
+			return
+		}
 		//判断一下是否点过赞
+		videos := result.([]HotVideo)
 		fillLikedForHot(videos, userID)
 		c.JSON(200, gin.H{"list": videos})
 		return

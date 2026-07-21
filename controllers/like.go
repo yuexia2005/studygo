@@ -134,23 +134,34 @@ func ToggleLike(c *gin.Context) {
 		}
 
 		//判断用户是否点赞
-		isLiked, _ := models.RDB.SIsMember(ctx, likeKey, userID).Result()
+		isLiked, err := models.RDB.SIsMember(ctx, likeKey, userID).Result()
+		if err != nil {
+			return nil, err
+		}
 		var action string
 		var finalLiked bool
 
 		if isLiked {
 			//已点赞 需要取消点赞
-			models.RDB.SRem(ctx, likeKey, userID)
+			if err := models.RDB.SRem(ctx, likeKey, userID).Err(); err != nil {
+				return nil, err
+			}
 			action = "unlike"
 			finalLiked = false
 		} else {
-			//未点赞
-			models.RDB.SAdd(ctx, likeKey, userID)
+			//未点赞：先清除 -1 占位符，再添加真实用户，避免计数偏大
+			models.RDB.SRem(ctx, likeKey, -1)
+			if err := models.RDB.SAdd(ctx, likeKey, userID).Err(); err != nil {
+				return nil, err
+			}
 			action = "like"
 			finalLiked = true
 		}
 		//获取点赞数（从redis获取）返回前端
-		likeCount, _ := models.RDB.SCard(ctx, likeKey).Result()
+		likeCount, err := models.RDB.SCard(ctx, likeKey).Result()
+		if err != nil {
+			return nil, err
+		}
 
 		// 返回给熔断器执行器的数据包
 		return map[string]interface{}{

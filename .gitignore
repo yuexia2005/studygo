@@ -39,3 +39,7 @@ logs/
 # 临时文件
 tmp/
 temp/
+
+# Node 模块
+frontend/node_modules/
+node_modules/

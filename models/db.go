@@ -110,4 +110,17 @@ func InitRedis() {
 	}
 	RedisCB = gobreaker.NewCircuitBreaker(settings)
 
+	// 后台监听 Redis 恢复，自动重建缓存
+	go func() {
+		for {
+			time.Sleep(10 * time.Second)
+			// 如果熔断器从 Open 恢复到了 Closed 或 HalfOpen，说明 Redis 好了
+			if RedisCB.State() == gobreaker.StateClosed {
+				// 通知热榜重建（需要导入 controllers 包，或者把重建逻辑移到 models）
+				log.Println("[Redis] 检测到恢复，触发缓存重建")
+				RebuildAllCaches()
+			}
+		}
+	}()
+
 }
