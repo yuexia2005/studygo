@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 	"video_feed/controllers"
 	"video_feed/middleware"
@@ -95,5 +96,16 @@ func SetupRouter() *gin.Engine {
 		auth.GET("/video/:id/comments", controllers.GetComments)
 		auth.DELETE("/comment/:id", controllers.DeleteComment)
 	}
+
+	// SPA 前端路由兜底：未匹配的 GET 请求返回 index.html
+	// 解决 Vue Router 直接访问 /hot、/feed 等页面刷新时 404 的问题
+	r.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		c.File("./dist/index.html")
+	})
+
 	return r
 }
