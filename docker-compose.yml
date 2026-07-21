@@ -3,21 +3,28 @@ services:
   rabbitmq:
     image: rabbitmq:3.9-management
     container_name: rabbitmq
+    restart: always
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-password}
     networks:
       - video_net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
 
   mysql:
     image: mysql:8.0
     container_name: video_mysql
+    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
-      MYSQL_DATABASE: video_feed
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-video_feed}
     ports:
       - "3307:3306"
     volumes:
@@ -30,41 +37,50 @@ services:
       timeout: 5s
       retries: 10
 
-    
   redis:
     image: redis:7-alpine
     container_name: video_redis
     restart: always
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
     networks:
       - video_net
-  
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
     container_name: video_app
     restart: always
     stop_grace_period: 30s
-    ports:
-      - "8085:8085"
+    # 生产环境不对外暴露端口，仅通过 Nginx 访问
+    # ports:
+    #   - "8085:8085"
     volumes:
       - ./uploads:/root/uploads
     depends_on:
       mysql:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
-        condition: service_started
-    
+        condition: service_healthy
     environment:
-       DB_HOST: mysql
-       DB_PORT: 3306
-       DB_USER: root
-       DB_PASSWORD: 123456
-       DB_NAME: video_feed
-       REDIS_ADDR: redis:6379
-       JWT_SECRET: your_secret_key
+      DB_HOST: mysql
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-video_feed}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-password}@rabbitmq:5672/}
+      GIN_MODE: ${GIN_MODE:-release}
     networks:
       - video_net
     healthcheck:
@@ -73,9 +89,24 @@ services:
       timeout: 5s
       retries: 3
 
+  nginx:
+    image: nginx:alpine
+    container_name: video_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - video_net
+
 networks:
   video_net:
 
 volumes:
   mysql_data:
-    
+  redis_data:

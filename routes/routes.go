@@ -1,9 +1,13 @@
 package routes
 
 import (
+	"context"
+	"net/http"
+	"os"
 	"time"
 	"video_feed/controllers"
 	"video_feed/middleware"
+	"video_feed/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +18,15 @@ func SetupRouter() *gin.Engine {
 	// 全局限流
 	r.Use(middleware.RateLimit())
 
-	// CORS中间件
+	// CORS中间件：通过 CORS_ORIGIN 环境变量控制允许的域名
+	// 未设置时不添加 Allow-Origin，仅允许同源请求（生产环境推荐）
+	// 本地开发可设置 CORS_ORIGIN=* 或 CORS_ORIGIN=http://localhost:3000
 	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		if origin := os.Getenv("CORS_ORIGIN"); origin != "" {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		}
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
@@ -38,14 +46,36 @@ func SetupRouter() *gin.Engine {
 	r.POST("/register", controllers.Register)
 	r.POST("/login", controllers.Login)
 
-	//健康检查路由(供 Docker 探测）
+	//健康检查路由(供 Docker 探测，同时验证 DB 和 Redis 连接）
 	r.GET("/health", func(c *gin.Context) {
-		c.String(200, "ok")
-	})
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 
-	r.GET("/slow", func(c *gin.Context) {
-		time.Sleep(10 * time.Second)
-		c.String(200, "slow response")
+		// 检查数据库
+		sqlDB, err := models.DB.DB()
+		if err != nil || sqlDB.PingContext(ctx) != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status": "unhealthy",
+				"db":     "disconnected",
+			})
+			return
+		}
+
+		// 检查 Redis
+		if _, err := models.RDB.Ping(ctx).Result(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status": "unhealthy",
+				"db":     "connected",
+				"redis":  "disconnected",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+			"db":     "connected",
+			"redis":  "connected",
+		})
 	})
 
 	//需要认证的路由

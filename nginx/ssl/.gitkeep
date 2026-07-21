@@ -1,0 +1,11 @@
+# 在此目录放置 SSL 证书:
+#   cert.pem - 证书文件（含完整证书链）
+#   key.pem  - 私钥文件
+#
+# 本地测试用自签名证书:
+#   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+#     -keyout nginx/ssl/key.pem \
+#     -out nginx/ssl/cert.pem \
+#     -subj "/CN=localhost"
+#
+# 生产环境建议使用 Let's Encrypt 免费证书

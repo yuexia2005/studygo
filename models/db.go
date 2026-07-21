@@ -35,9 +35,9 @@ func InitDB() {
 		host = "10.151.248.223"
 	}
 
-	post := os.Getenv("DB_POST")
-	if post == "" {
-		post = "3306"
+	port := os.Getenv("DB_PORT")
+	if port == "" {
+		port = "3306"
 	}
 
 	dbname := os.Getenv("DB_NAME")
@@ -45,15 +45,22 @@ func InitDB() {
 		dbname = "video_feed"
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, post, dbname)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, port, dbname)
 
 	log.Printf("正在连接数据库")
-	//启用grom的sql日志(测试热点防击穿)
+
+	// 根据 GIN_MODE 动态设置 GORM 日志级别
+	// 本地默认打印 SQL，部署时 docker-compose 传入 GIN_MODE=release 自动关闭
+	gormLogLevel := logger.Info
+	if os.Getenv("GIN_MODE") == "release" {
+		gormLogLevel = logger.Warn
+	}
+
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags),
 		logger.Config{
 			SlowThreshold: time.Second,
-			LogLevel:      logger.Info, // 打印所有 SQL
+			LogLevel:      gormLogLevel,
 			Colorful:      true,
 		},
 	)
